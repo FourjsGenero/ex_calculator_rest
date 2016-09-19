@@ -1,0 +1,60 @@
+# per file from $FGLDIR/demo/WebServices/calculator/client of Genero 2.11.02
+# reuben Jan 2009 no changes necessary in changing from SOAP to REST web service in .per file
+
+SCHEMA FORMONLY
+ACTION DEFAULTS
+   ACTION plus ( ACCELERATOR=F1 )
+   ACTION minus ( ACCELERATOR=F2 )
+   ACTION multiply ( ACCELERATOR=F3 )
+   ACTION divide ( ACCELERATOR=F4 )
+END
+
+LAYOUT
+  GROUP (TEXT="Calculator DEMO")
+    VBOX
+      HBOX   
+        VBOX
+          GRID
+          {
+            Operand:   [op1    ]        
+            Operand:   [op2    ]        
+         
+            Result:    [result ]
+            Remainder: [remaind]
+          }
+          END
+        END -- vbox
+        VBOX
+          GRID
+          {
+           [bt1 ] [bt2 ]
+           [bt3 ] [bt4 ]
+          }
+          END
+        END -- vbox
+      END -- hbox
+      HBOX
+        GRID
+        {
+          [msg                  ]
+        }
+        END -- group
+      END --hbox
+    END --vbox
+  END -- group
+END  -- layout
+
+
+ATTRIBUTES
+EDIT op1=formonly.op1;
+EDIT op2=formonly.op2;
+EDIT result=formonly.result;
+EDIT remaind=formonly.remaind, COLOR = RED;
+BUTTON bt1 : plus, TEXT="Plus",COMMENT="Add the first operand to the second one";
+BUTTON bt2 : minus, TEXT="Minus",COMMENT="Substract the first operand to the second one";
+BUTTON bt3 : multiply, TEXT="Multiply",COMMENT="Multiply the first operand with the second one";
+BUTTON bt4 : divide, TEXT="Divide",COMMENT="Divide the first operand by the second one";
+TEXTEDIT msg=formonly.msg, NOENTRY, STRETCH=BOTH,SCROLLBARS=NONE,TITLE="Error description";
+END
+
+
