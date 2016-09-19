@@ -39,10 +39,7 @@ IMPORT xml
 MAIN
   DEFINE op1        INTEGER
   DEFINE op2        INTEGER
-  DEFINE result     INTEGER
-  DEFINE remaind    INTEGER
-  DEFINE ok         INTEGER
-  DEFINE error      STRING
+  
   CLOSE WINDOW SCREEN
   
   OPEN WINDOW w1 WITH FORM "calculatorClient" ATTRIBUTE (TEXT="Web Services calculator demo",STYLE="naked")
@@ -135,8 +132,7 @@ DEFINE result, remaind INTEGER
 DEFINE address STRING
 
    LET address = "localhost:", nvl(FGL_GETENV("FGLAPPSERVER"),8090)
-   DISPLAY address
-
+   
    LET url = SFMT("http://%1/calculator?operator=%2&param1=%3&param2=%4", address, operator, param1.trim(), param2.trim())
 
   # Create the HTTP request and get the XML response

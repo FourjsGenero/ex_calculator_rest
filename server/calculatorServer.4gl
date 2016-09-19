@@ -95,7 +95,6 @@ FUNCTION process_http_request(url)
 DEFINE url, address, method, arglist STRING
 DEFINE doc xml.DomDocument
 DEFINE ok SMALLINT
-DEFINE code INTEGER
 DEFINE desc STRING
 
    # Turn the URL into the address, method, and a list of arguments
