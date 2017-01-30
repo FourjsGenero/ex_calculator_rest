@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<Project defaultApplication="1556264979" gstVersion="3001d" version="3.1">
+<Project defaultApplication="1556264979" gstVersion="30020" version="3.1">
   <Settings>
     <DynamicProperties version="2">
       <DynamicProperty description="Accent color (Android 5.0 and later)" initialValue="#9575CD" isDefaultInherited="false" isHidden="false" label="Accent color" name="gma-accent-color" readOnly="false" type="COLOR"/>
@@ -53,7 +53,7 @@
   </Settings>
   <LanguageList version="1.0"/>
   <PlatformList version="1.0"/>
-  <Group environment="value:FGLAPPSERVER=8091" label="ex_calculator_rest" language="Genero" targetDirectory="$(ProjectDir)">
+  <Group environment="value:FGLAPPSERVER=8092" label="ex_calculator_rest" language="Genero" targetDirectory="$(ProjectDir)">
     <Group label="client" language="Genero" targetDirectory="$(ProjectDir)/client">
       <Application binaryName="calculatorClient" id="-403265688" label="calculatorClient">
         <File filePath="client/calculatorClient.4gl"/>
@@ -61,7 +61,7 @@
       </Application>
     </Group>
     <Group label="server" language="Genero" targetDirectory="$(ProjectDir)/server">
-      <Application binaryName="calculatorServer" id="1556264979" label="calculatorServer">
+      <Application binaryName="calculatorServer" gasWebService="true" gasWebServiceArgs="calculator?operator=add&amp;param1=1&amp;param2=2" id="1556264979" label="calculatorServer">
         <File filePath="server/calculatorServer.4gl"/>
         <File filePath="server/lib_rest.4gl"/>
       </Application>
