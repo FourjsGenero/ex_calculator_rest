@@ -27,7 +27,7 @@
 #
 #       reuben January 2009 Created by taking $FGLDIR/demo/WebServices/calculator/server/calculatorServer.4gl
 #                           and modifying to be a REST based web service rather than a SOAP based web service
-#
+#       reuben November 2017 Modified to use new functions in FGLDIR/src/WSHelper.4gl
 
 #+ calculatorServer.4gl
 #+
@@ -35,6 +35,7 @@
 
 IMPORT com
 IMPORT xml
+IMPORT FGL WSHelper
 
 MAIN
   DEFINE request com.HTTPServiceRequest  
@@ -92,18 +93,19 @@ END MAIN
 #+
 #+ @return desc STRING If the method wasn't one we were expecting return a message to indicate this
 FUNCTION process_http_request(url)
-DEFINE url, address, method, arglist STRING
+DEFINE url STRING
 DEFINE doc xml.DomDocument
 DEFINE ok SMALLINT
 DEFINE desc STRING
+DEFINE scheme, host,port, path, query STRING
 
    # Turn the URL into the address, method, and a list of arguments
-   CALL split_url(url) RETURNING address, method, arglist
-
-   CASE method
-      WHEN "calculator"
-	     CALL rest_calculator(arglist) RETURNING ok, doc
-      WHEN "favicon.ico"
+   CALL WSHelper.SplitURL(url) RETURNING scheme, host, port, path, query
+  
+   CASE path
+      WHEN "/calculator"
+	     CALL rest_calculator(query) RETURNING ok, doc
+      WHEN "/favicon.ico"
 	     # ignore this method, called if enter URL in a browser 
 		 LET ok = TRUE
 		 LET doc = NULL
@@ -149,13 +151,13 @@ DEFINE root_node, input_node, output_node xml.DomNode
    LET output_node = root_node.appendChildElement("OUTPUT")
 
    # Read what we can of the arguments
-   LET operator = get_urlarg_value("operator", arglist)
+   LET operator = WSHelper.FindQueryStringValue(arglist, "operator")
    CALL input_node.setAttribute("operator", operator)
 
-   LET param1arg = get_urlarg_value("param1", arglist)
+   LET param1arg = WSHelper.FindQueryStringValue(arglist, "param1")
    CALL input_node.setAttribute("param1", param1arg)
 
-   LET param2arg = get_urlarg_value("param2", arglist)
+   LET param2arg = WSHelper.FindQueryStringValue(arglist, "param2")
    CALL input_node.setAttribute("param2", param2arg)
 
    # Validate the arguments
