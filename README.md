@@ -42,6 +42,6 @@ In the Output panel (not shown) you will see something like
     ::info:(GS-1025) Display client already running on 'localhost:6400'
     Processing http://localhost:8092/calculator?operator=add&param1=1&param2=2
 
-<img alt="Setup screenshot" src="https://user-images.githubusercontent.com/13615993/32254383-478c671c-bf05-11e7-9a3c-8fe67947d93e.png" width="75%" />
+<img alt="Setup screenshot" src="https://user-images.githubusercontent.com/13615993/32254383-478c671c-bf05-11e7-9a3c-8fe67947d93e.png" width="50%" />
 
 I would suggest you become familiar with the error messages if the server is not running, and also note what happens if you type the URL directly into a browser.
