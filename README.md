@@ -26,3 +26,22 @@ The result is an XML Document of the form ...
 The server program uses some helper functions that are in FGLDIR/src/WSHelper.4gl to get from the URL the method and arguments.  (early versions of this program had its own functions in lib_rest.4gl to do this, but better to use the functions we supply so lib_rest.4gl has been deleted.)
 
 (Note: This example was written before JSON was added to Genero.  Its on my TODO list to add JSON to this example)
+
+If you are having trouble configuring and running, note the screenshot below ...
+
+Note how calculatorClient is default app.
+
+I have right-clicked on calculatorServer app to launch the server program first (see in Tasks it was launched before calculatorClient)
+Then I have executed the calculatorClient app
+Typed in values and pressed operation.
+
+In the Output panel (not shown) you will see something like
+
+    *** Running 'calculatorClient' ***
+    --> $(gstrun)
+    ::info:(GS-1025) Display client already running on 'localhost:6400'
+    Processing http://localhost:8092/calculator?operator=add&param1=1&param2=2
+
+<img alt="Setup screenshot" src="https://user-images.githubusercontent.com/13615993/32254383-478c671c-bf05-11e7-9a3c-8fe67947d93e.png" width="75%" />
+
+I would suggest you become familiar with the error messages if the server is not running, and also note what happens if you type the URL directly into a browser.
