@@ -1,177 +1,454 @@
-#
-#       (c) Copyright 2008, Four Js AsiaPac - www.4js.com.au/local
-#
-#       MIT License (http://www.opensource.org/licenses/mit-license.php)
-#
-#       Permission is hereby granted, free of charge, to any person
-#       obtaining a copy of this software and associated documentation
-#       files (the "Software"), to deal in the Software without restriction,
-#       including without limitation the rights to use, copy, modify, merge,
-#       publish, distribute, sublicense, and/or sell copies of the Software,
-#       and to permit persons to whom the Software is furnished to do so,
-#       subject to the following conditions:
-#
-#       The above copyright notice and this permission notice shall be
-#       included in all copies or substantial portions of the Software.
-#
-#       THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-#       EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-#       OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-#       NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS
-#       BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN
-#       ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
-#       CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-#       THE SOFTWARE.
-#
-#       calculatorClient.4gl Client of REST based web service example
-#
-#       reuben January 2009 Created by taking $FGLDIR/demo/WebServices/calculator/client/calculatorClient.4gl
-#                           and modifying to call a REST based web service rather than a SOAP based web service
-#
-
-#+ calculatorClient.4gl
 #+
-#+ Client of REST based calculator web service example
-
+#+ Generated from calculatorClient
+#+
 IMPORT com
 IMPORT xml
+IMPORT util
+IMPORT os
 
-MAIN
-  DEFINE op1        INTEGER
-  DEFINE op2        INTEGER
-  
-  CLOSE WINDOW SCREEN
-  
-  OPEN WINDOW w1 WITH FORM "calculatorClient" ATTRIBUTE (TEXT="Web Services calculator demo",STYLE="naked")
-  
-  INPUT BY NAME op1,op2 ATTRIBUTE (UNBUFFERED)
-     ON ACTION plus     CALL calc("add", op1, op2)
-     ON ACTION minus    CALL calc("minus", op1, op2)
-     ON ACTION multiply CALL calc("multiply", op1, op2)
-     ON ACTION divide   CALL calc("divide", op1, op2)
-     ON ACTION close
-       EXIT INPUT       
-  END INPUT
-
-  CLOSE WINDOW w1
-  
-END MAIN
-
-
-
-#+ calc(operator, param1, param2)
 #+
-#+ Bridge between the INPUT and the REST Web Service handler to make the call and display results in a consistent manner
+#+ Global Endpoint user-defined type definition
 #+
-#+ @code 
-#+ CALL calc("add",1,2)
-#+
-#+ @param operator STRING The action triggered by the user
-#+
-#+ @param param1 INTEGER The first parameter entered by the user
-#+
-#+ @param param2 INTEGER The second parameter entered by the user
-FUNCTION calc(operator, param1, param2)
-DEFINE operator STRING
-DEFINE param1   INTEGER
-DEFINE param2    INTEGER
+TYPE tGlobalEndpointType RECORD # Rest Endpoint
+    Address RECORD # Address
+        Uri STRING # URI
+    END RECORD,
+    Binding RECORD # Binding
+        Version STRING, # HTTP Version (1.0 or 1.1)
+        ConnectionTimeout INTEGER, # Connection timeout
+        ReadWriteTimeout INTEGER, # Read write timeout
+        CompressRequest STRING # Compression (gzip or deflate)
+    END RECORD
+END RECORD
 
-DEFINE ok         INTEGER
-DEFINE error      STRING
-DEFINE result     INTEGER
-DEFINE remaind    INTEGER
+PUBLIC DEFINE Endpoint
+    tGlobalEndpointType
+    = (Address:(Uri: "http://localhost:8092/ws/r/Calculator"))
 
-   CALL calc_rest(operator,param1, param2) RETURNING ok, error, result, remaind
-   IF ok THEN
-      DISPLAY BY NAME result,remaind
-      DISPLAY "OK" TO msg
-   ELSE
-      CLEAR result, remaind
-      DISPLAY error TO msg
-   END IF
+# Error codes
+PUBLIC CONSTANT C_SUCCESS = 0
+
+################################################################################
+# Operation /Modulo
+#
+# VERB: GET
+#
+PUBLIC FUNCTION modulo(p_x INTEGER, p_y INTEGER) RETURNS(INTEGER, INTEGER)
+    DEFINE fullpath base.StringBuffer
+    DEFINE query base.StringBuffer
+    DEFINE contentType STRING
+    DEFINE req com.HTTPRequest
+    DEFINE resp com.HTTPResponse
+    DEFINE resp_body INTEGER
+
+    TRY
+
+        # Prepare request path
+        LET fullpath = base.StringBuffer.Create()
+        LET query = base.StringBuffer.Create()
+        CALL fullpath.append("/Modulo")
+        IF p_x IS NOT NULL THEN
+            IF query.getLength() > 0 THEN
+                CALL query.append(SFMT("&x=%1", p_x))
+            ELSE
+                CALL query.append(SFMT("x=%1", p_x))
+            END IF
+        END IF
+        IF p_y IS NOT NULL THEN
+            IF query.getLength() > 0 THEN
+                CALL query.append(SFMT("&y=%1", p_y))
+            ELSE
+                CALL query.append(SFMT("y=%1", p_y))
+            END IF
+        END IF
+        IF query.getLength() > 0 THEN
+            CALL fullpath.append("?")
+            CALL fullpath.append(query.toString())
+        END IF
+
+        # Create request and configure it
+        LET req =
+            com.HTTPRequest.Create(
+                SFMT("%1%2", Endpoint.Address.Uri, fullpath.toString()))
+        IF Endpoint.Binding.Version IS NOT NULL THEN
+            CALL req.setVersion(Endpoint.Binding.Version)
+        END IF
+        IF Endpoint.Binding.ConnectionTimeout <> 0 THEN
+            CALL req.setConnectionTimeout(Endpoint.Binding.ConnectionTimeout)
+        END IF
+        IF Endpoint.Binding.ReadWriteTimeout <> 0 THEN
+            CALL req.setTimeout(Endpoint.Binding.ReadWriteTimeout)
+        END IF
+        IF Endpoint.Binding.CompressRequest IS NOT NULL THEN
+            CALL req.setHeader(
+                "Content-Encoding", Endpoint.Binding.CompressRequest)
+        END IF
+
+        # Perform request
+        CALL req.setMethod("GET")
+        CALL req.setHeader("Accept", "text/plain")
+        CALL req.DoRequest()
+
+        # Retrieve response
+        LET resp = req.getResponse()
+        # Process response
+        INITIALIZE resp_body TO NULL
+        LET contentType = resp.getHeader("Content-Type")
+        CASE resp.getStatusCode()
+
+            WHEN 200 #Success
+                IF contentType MATCHES "*text/plain*" THEN
+                    # Parse TEXT response
+                    LET resp_body = resp.getTextResponse()
+                    RETURN C_SUCCESS, resp_body
+                END IF
+                RETURN -1, resp_body
+
+            OTHERWISE
+                RETURN resp.getStatusCode(), resp_body
+        END CASE
+    CATCH
+        RETURN -1, resp_body
+    END TRY
 END FUNCTION
+################################################################################
 
+################################################################################
+# Operation /Divide
+#
+# VERB: GET
+#
+PUBLIC FUNCTION divide(p_x INTEGER, p_y INTEGER) RETURNS(INTEGER, INTEGER)
+    DEFINE fullpath base.StringBuffer
+    DEFINE query base.StringBuffer
+    DEFINE contentType STRING
+    DEFINE req com.HTTPRequest
+    DEFINE resp com.HTTPResponse
+    DEFINE resp_body INTEGER
 
+    TRY
 
-#+ calc_rest(operator, param1, param2) RETURNING ok, error, result, remaind
-#+
-#+ Function that calls the calc REST based Web Server and interprets the result and turns it into something suitable for display in the client program
-#+
-#+ @code
-#+ CALL calc_rest("add",1,2) RETURING ok, error, result, remaind
-#+
-#+ @param operator STRING The action triggered by the user
-#+
-#+ @param param1 INTEGER The first parameter entered by the user
-#+
-#+ @param param2 INTEGER The second parameter entered by the user
-#+
-#+ @return ok SMALLINT TRUE/FALSE indicating if the calculation was performed successfully
-#+
-#+ @return error STRING An error message that is suitable to display in the client program
-#+
-#+ @return result INTEGER The result of the calculator operation
-#+
-#+ @return remaind INTEGER The remainder result of the calculator operation. Only populated by divide operations
-FUNCTION calc_rest(operator, param1, param2)
-DEFINE operator STRING
-DEFINE param1, param2 STRING
-DEFINE url STRING
+        # Prepare request path
+        LET fullpath = base.StringBuffer.Create()
+        LET query = base.StringBuffer.Create()
+        CALL fullpath.append("/Divide")
+        IF p_x IS NOT NULL THEN
+            IF query.getLength() > 0 THEN
+                CALL query.append(SFMT("&x=%1", p_x))
+            ELSE
+                CALL query.append(SFMT("x=%1", p_x))
+            END IF
+        END IF
+        IF p_y IS NOT NULL THEN
+            IF query.getLength() > 0 THEN
+                CALL query.append(SFMT("&y=%1", p_y))
+            ELSE
+                CALL query.append(SFMT("y=%1", p_y))
+            END IF
+        END IF
+        IF query.getLength() > 0 THEN
+            CALL fullpath.append("?")
+            CALL fullpath.append(query.toString())
+        END IF
 
-DEFINE result_dom xml.DomDocument
-DEFINE root xml.DomNode
-DEFINE child xml.DomNode
-DEFINE http_req com.HTTPRequest
-DEFINE http_resp com.HTTPResponse
+        # Create request and configure it
+        LET req =
+            com.HTTPRequest.Create(
+                SFMT("%1%2", Endpoint.Address.Uri, fullpath.toString()))
+        IF Endpoint.Binding.Version IS NOT NULL THEN
+            CALL req.setVersion(Endpoint.Binding.Version)
+        END IF
+        IF Endpoint.Binding.ConnectionTimeout <> 0 THEN
+            CALL req.setConnectionTimeout(Endpoint.Binding.ConnectionTimeout)
+        END IF
+        IF Endpoint.Binding.ReadWriteTimeout <> 0 THEN
+            CALL req.setTimeout(Endpoint.Binding.ReadWriteTimeout)
+        END IF
+        IF Endpoint.Binding.CompressRequest IS NOT NULL THEN
+            CALL req.setHeader(
+                "Content-Encoding", Endpoint.Binding.CompressRequest)
+        END IF
 
-DEFINE error_code INTEGER
-DEFINE error_desc STRING
-DEFINE error_text STRING
-DEFINE result, remaind INTEGER
+        # Perform request
+        CALL req.setMethod("GET")
+        CALL req.setHeader("Accept", "text/plain")
+        CALL req.DoRequest()
 
-DEFINE address STRING
+        # Retrieve response
+        LET resp = req.getResponse()
+        # Process response
+        INITIALIZE resp_body TO NULL
+        LET contentType = resp.getHeader("Content-Type")
+        CASE resp.getStatusCode()
 
-   LET address = "localhost:", nvl(FGL_GETENV("FGLAPPSERVER"),8090)
-   
-   LET url = SFMT("http://%1/calculator?operator=%2&param1=%3&param2=%4", address, operator, param1.trim(), param2.trim())
+            WHEN 200 #Success
+                IF contentType MATCHES "*text/plain*" THEN
+                    # Parse TEXT response
+                    LET resp_body = resp.getTextResponse()
+                    RETURN C_SUCCESS, resp_body
+                END IF
+                RETURN -1, resp_body
 
-  # Create the HTTP request and get the XML response
-   TRY
-      LET http_req = com.HTTPRequest.Create(url)
-	  CALL http_req.doRequest()
-	  LET http_resp = http_req.getResponse()
-	  IF http_resp.getStatusCode() != 200 THEN # 200 is HTTP success code
-	     # Some error occured in the HTTP communication
-	     LET error_code = http_resp.getStatusCode()
-		 LET error_desc = http_resp.getStatusDescription()
-		 RETURN FALSE, error_desc, 0, 0
-      ELSE
-	     # Successful communicaton
-	     LET result_dom = http_resp.getXmlResponse()
-      END IF
-   CATCH
-      # Some other error occured
-	  LET error_code = status
-	  LET error_desc = ERR_GET(error_code)
-	  RETURN FALSE, error_desc, 0, 0
-   END TRY	  
-
-   LET root = result_dom.getDocumentElement()
-   LET error_text = root.getAttribute("error")
-   IF error_text.getLength() > 0 THEN
-      # Function returned an error 
-      RETURN FALSE, error_text, 0, 0
-   END IF
-
-   # Function was able to be interpreted
-   # Output is the second child
-   LET child = root.getLastChild()
-   IF child.getNodeName() = "OUTPUT" THEN
-      LET result = child.getAttribute("result")
-	  LET remaind = child.getAttribute("remaind")
-	  RETURN TRUE, "", result, remaind
-   ELSE
-      # XML Document isn't in expected format
-      RETURN FALSE, "Unable to interpret result", 0, 0
-   END IF
+            OTHERWISE
+                RETURN resp.getStatusCode(), resp_body
+        END CASE
+    CATCH
+        RETURN -1, resp_body
+    END TRY
 END FUNCTION
+################################################################################
+
+################################################################################
+# Operation /Multiply
+#
+# VERB: GET
+#
+PUBLIC FUNCTION multiply(p_x INTEGER, p_y INTEGER) RETURNS(INTEGER, INTEGER)
+    DEFINE fullpath base.StringBuffer
+    DEFINE query base.StringBuffer
+    DEFINE contentType STRING
+    DEFINE req com.HTTPRequest
+    DEFINE resp com.HTTPResponse
+    DEFINE resp_body INTEGER
+
+    TRY
+
+        # Prepare request path
+        LET fullpath = base.StringBuffer.Create()
+        LET query = base.StringBuffer.Create()
+        CALL fullpath.append("/Multiply")
+        IF p_x IS NOT NULL THEN
+            IF query.getLength() > 0 THEN
+                CALL query.append(SFMT("&x=%1", p_x))
+            ELSE
+                CALL query.append(SFMT("x=%1", p_x))
+            END IF
+        END IF
+        IF p_y IS NOT NULL THEN
+            IF query.getLength() > 0 THEN
+                CALL query.append(SFMT("&y=%1", p_y))
+            ELSE
+                CALL query.append(SFMT("y=%1", p_y))
+            END IF
+        END IF
+        IF query.getLength() > 0 THEN
+            CALL fullpath.append("?")
+            CALL fullpath.append(query.toString())
+        END IF
+
+        # Create request and configure it
+        LET req =
+            com.HTTPRequest.Create(
+                SFMT("%1%2", Endpoint.Address.Uri, fullpath.toString()))
+        IF Endpoint.Binding.Version IS NOT NULL THEN
+            CALL req.setVersion(Endpoint.Binding.Version)
+        END IF
+        IF Endpoint.Binding.ConnectionTimeout <> 0 THEN
+            CALL req.setConnectionTimeout(Endpoint.Binding.ConnectionTimeout)
+        END IF
+        IF Endpoint.Binding.ReadWriteTimeout <> 0 THEN
+            CALL req.setTimeout(Endpoint.Binding.ReadWriteTimeout)
+        END IF
+        IF Endpoint.Binding.CompressRequest IS NOT NULL THEN
+            CALL req.setHeader(
+                "Content-Encoding", Endpoint.Binding.CompressRequest)
+        END IF
+
+        # Perform request
+        CALL req.setMethod("GET")
+        CALL req.setHeader("Accept", "text/plain")
+        CALL req.DoRequest()
+
+        # Retrieve response
+        LET resp = req.getResponse()
+        # Process response
+        INITIALIZE resp_body TO NULL
+        LET contentType = resp.getHeader("Content-Type")
+        CASE resp.getStatusCode()
+
+            WHEN 200 #Success
+                IF contentType MATCHES "*text/plain*" THEN
+                    # Parse TEXT response
+                    LET resp_body = resp.getTextResponse()
+                    RETURN C_SUCCESS, resp_body
+                END IF
+                RETURN -1, resp_body
+
+            OTHERWISE
+                RETURN resp.getStatusCode(), resp_body
+        END CASE
+    CATCH
+        RETURN -1, resp_body
+    END TRY
+END FUNCTION
+################################################################################
+
+################################################################################
+# Operation /Minus
+#
+# VERB: GET
+#
+PUBLIC FUNCTION minus(p_x INTEGER, p_y INTEGER) RETURNS(INTEGER, INTEGER)
+    DEFINE fullpath base.StringBuffer
+    DEFINE query base.StringBuffer
+    DEFINE contentType STRING
+    DEFINE req com.HTTPRequest
+    DEFINE resp com.HTTPResponse
+    DEFINE resp_body INTEGER
+
+    TRY
+
+        # Prepare request path
+        LET fullpath = base.StringBuffer.Create()
+        LET query = base.StringBuffer.Create()
+        CALL fullpath.append("/Minus")
+        IF p_x IS NOT NULL THEN
+            IF query.getLength() > 0 THEN
+                CALL query.append(SFMT("&x=%1", p_x))
+            ELSE
+                CALL query.append(SFMT("x=%1", p_x))
+            END IF
+        END IF
+        IF p_y IS NOT NULL THEN
+            IF query.getLength() > 0 THEN
+                CALL query.append(SFMT("&y=%1", p_y))
+            ELSE
+                CALL query.append(SFMT("y=%1", p_y))
+            END IF
+        END IF
+        IF query.getLength() > 0 THEN
+            CALL fullpath.append("?")
+            CALL fullpath.append(query.toString())
+        END IF
+
+        # Create request and configure it
+        LET req =
+            com.HTTPRequest.Create(
+                SFMT("%1%2", Endpoint.Address.Uri, fullpath.toString()))
+        IF Endpoint.Binding.Version IS NOT NULL THEN
+            CALL req.setVersion(Endpoint.Binding.Version)
+        END IF
+        IF Endpoint.Binding.ConnectionTimeout <> 0 THEN
+            CALL req.setConnectionTimeout(Endpoint.Binding.ConnectionTimeout)
+        END IF
+        IF Endpoint.Binding.ReadWriteTimeout <> 0 THEN
+            CALL req.setTimeout(Endpoint.Binding.ReadWriteTimeout)
+        END IF
+        IF Endpoint.Binding.CompressRequest IS NOT NULL THEN
+            CALL req.setHeader(
+                "Content-Encoding", Endpoint.Binding.CompressRequest)
+        END IF
+
+        # Perform request
+        CALL req.setMethod("GET")
+        CALL req.setHeader("Accept", "text/plain")
+        CALL req.DoRequest()
+
+        # Retrieve response
+        LET resp = req.getResponse()
+        # Process response
+        INITIALIZE resp_body TO NULL
+        LET contentType = resp.getHeader("Content-Type")
+        CASE resp.getStatusCode()
+
+            WHEN 200 #Success
+                IF contentType MATCHES "*text/plain*" THEN
+                    # Parse TEXT response
+                    LET resp_body = resp.getTextResponse()
+                    RETURN C_SUCCESS, resp_body
+                END IF
+                RETURN -1, resp_body
+
+            OTHERWISE
+                RETURN resp.getStatusCode(), resp_body
+        END CASE
+    CATCH
+        RETURN -1, resp_body
+    END TRY
+END FUNCTION
+################################################################################
+
+################################################################################
+# Operation /Add
+#
+# VERB: GET
+#
+PUBLIC FUNCTION add(p_x INTEGER, p_y INTEGER) RETURNS(INTEGER, INTEGER)
+    DEFINE fullpath base.StringBuffer
+    DEFINE query base.StringBuffer
+    DEFINE contentType STRING
+    DEFINE req com.HTTPRequest
+    DEFINE resp com.HTTPResponse
+    DEFINE resp_body INTEGER
+
+    TRY
+
+        # Prepare request path
+        LET fullpath = base.StringBuffer.Create()
+        LET query = base.StringBuffer.Create()
+        CALL fullpath.append("/Add")
+        IF p_x IS NOT NULL THEN
+            IF query.getLength() > 0 THEN
+                CALL query.append(SFMT("&x=%1", p_x))
+            ELSE
+                CALL query.append(SFMT("x=%1", p_x))
+            END IF
+        END IF
+        IF p_y IS NOT NULL THEN
+            IF query.getLength() > 0 THEN
+                CALL query.append(SFMT("&y=%1", p_y))
+            ELSE
+                CALL query.append(SFMT("y=%1", p_y))
+            END IF
+        END IF
+        IF query.getLength() > 0 THEN
+            CALL fullpath.append("?")
+            CALL fullpath.append(query.toString())
+        END IF
+
+        # Create request and configure it
+        LET req =
+            com.HTTPRequest.Create(
+                SFMT("%1%2", Endpoint.Address.Uri, fullpath.toString()))
+        IF Endpoint.Binding.Version IS NOT NULL THEN
+            CALL req.setVersion(Endpoint.Binding.Version)
+        END IF
+        IF Endpoint.Binding.ConnectionTimeout <> 0 THEN
+            CALL req.setConnectionTimeout(Endpoint.Binding.ConnectionTimeout)
+        END IF
+        IF Endpoint.Binding.ReadWriteTimeout <> 0 THEN
+            CALL req.setTimeout(Endpoint.Binding.ReadWriteTimeout)
+        END IF
+        IF Endpoint.Binding.CompressRequest IS NOT NULL THEN
+            CALL req.setHeader(
+                "Content-Encoding", Endpoint.Binding.CompressRequest)
+        END IF
+
+        # Perform request
+        CALL req.setMethod("GET")
+        CALL req.setHeader("Accept", "text/plain")
+        CALL req.DoRequest()
+
+        # Retrieve response
+        LET resp = req.getResponse()
+        # Process response
+        INITIALIZE resp_body TO NULL
+        LET contentType = resp.getHeader("Content-Type")
+        CASE resp.getStatusCode()
+
+            WHEN 200 #Success
+                IF contentType MATCHES "*text/plain*" THEN
+                    # Parse TEXT response
+                    LET resp_body = resp.getTextResponse()
+                    RETURN C_SUCCESS, resp_body
+                END IF
+                RETURN -1, resp_body
+
+            OTHERWISE
+                RETURN resp.getStatusCode(), resp_body
+        END CASE
+    CATCH
+        RETURN -1, resp_body
+    END TRY
+END FUNCTION
+################################################################################
